@@ -44,6 +44,7 @@ const long intervalo = 2000;
 unsigned long tiempoAnterior = 0;
 int voltage;
 float V;
+float I;
 File datos; 
 
 DS1302 rtc(6, 5, 4); //CLK, DAT, RST 
@@ -117,18 +118,20 @@ void loop()
   if(Serial2.available() > 0)
   {
   byte dato = Serial2.read();
-  if(dato == 0x83 && Serial2.available() >= 2) // Se adquiere el dato del voltaje general de la bateria
+  if(dato == 0x83 && Serial2.available() >= 2) 
     {
       byte byte1 = Serial2.read();
       byte byte2 = Serial2.read();
       voltage = (byte1 << 8) | byte2;
       V = voltage * 0.01;
-      tiempo();
-      Serial.print(voltage * 0.01);
-      Serial.print(",");
-      //datos = SD.open("datalog.txt", FILE_WRITE);
-      //datos.print(V);
-      //datos.close();
+      //tiempo();
+      //Serial.print(voltage * 0.01);
+      //Serial.print(",");
+      datos = SD.open("datalog.txt", FILE_WRITE);
+      datos.print(rtc.getTimeStr());
+      datos.print(";");
+      datos.print(V);
+      datos.print(";");
       }
   if (dato == 0x84 && Serial2.available() >= 2)
     {
@@ -136,13 +139,19 @@ void loop()
       byte byte4 = Serial2.read();
       int corriente = (byte3 << 8) | byte4;
       float current = (10000 - corriente) * 0.01;
-      Serial.print(round(current * 10.0)/10.0, 1);
-      Serial.print(",");
+      I = round(current * 10.0)/10.0, 1;
+      //Serial.print(round(current * 10.0)/10.0, 1);
+      //Serial.print(",");
+      datos.print(I*-1);
+      datos.print(";");
     }
   if(dato == 0x85 && Serial2.available() >= 1)
     {
       byte byte4 = Serial2.read();
-      Serial.println(byte4);
+      //Serial.println(byte4);
+      datos.println(byte4);
+      datos.close();
+
     }
   }
 }
