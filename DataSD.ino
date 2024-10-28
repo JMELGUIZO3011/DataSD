@@ -1,4 +1,3 @@
-
 #include<DS1302.h>
 #include<SoftwareSerial.h>
 #include<SD.h>
@@ -11,6 +10,11 @@ MOSI -> 11
 SCK -> 13
 CS -> 10
 
+Conexiones de reloj en tiempo real
+
+CLK -> 4
+DAT -> 5 
+RST -> 6
 
 */
 
@@ -39,7 +43,7 @@ uint8_t b20 = 0x01;
 uint8_t b21 = 0x3A; 
 
 
-SoftwareSerial Serial2(2, 3);
+SoftwareSerial Serial2(3, 2);
 const long intervalo = 2000;
 unsigned long tiempoAnterior = 0;
 int voltage;
@@ -65,7 +69,7 @@ void setup()
   }
   Serial.println("Iniciado Correctamente");
   //rtc.setDOW(FRIDAY);
-  //rtc.setTime(11, 31, 30);
+  //rtc.setTime(12, 22, 00);
   //rtc.setDate(2, 2, 2024);
   Serial2.write(b0);
 
@@ -112,46 +116,77 @@ void loop()
   unsigned long tiempoActual = millis();
   if (tiempoActual - tiempoAnterior >= intervalo) 
   {
-   tiempoAnterior = tiempoActual;
-   mensaje();
+    tiempoAnterior = tiempoActual;
+    mensaje();
+    //Serial.println(rtc.getTimeStr());
   }
-  if(Serial2.available() > 0)
-  {
-  byte dato = Serial2.read();
-  if(dato == 0x83 && Serial2.available() >= 2) 
-    {
-      byte byte1 = Serial2.read();
-      byte byte2 = Serial2.read();
-      voltage = (byte1 << 8) | byte2;
-      V = voltage * 0.01;
-      //tiempo();
-      //Serial.print(voltage * 0.01);
-      //Serial.print(",");
-      datos = SD.open("datalog.txt", FILE_WRITE);
-      datos.print(rtc.getTimeStr());
-      datos.print(";");
-      datos.print(V);
-      datos.print(";");
-      }
-  if (dato == 0x84 && Serial2.available() >= 2)
-    {
-      byte byte3 = Serial2.read();
-      byte byte4 = Serial2.read();
-      int corriente = (byte3 << 8) | byte4;
-      float current = (10000 - corriente) * 0.01;
-      I = round(current * 10.0)/10.0, 1;
-      //Serial.print(round(current * 10.0)/10.0, 1);
-      //Serial.print(",");
-      datos.print(I*-1);
-      datos.print(";");
-    }
-  if(dato == 0x85 && Serial2.available() >= 1)
-    {
-      byte byte4 = Serial2.read();
-      //Serial.println(byte4);
-      datos.println(byte4);
-      datos.close();
 
+  if (Serial2.available() > 0)
+  {
+    byte dato = Serial2.read();
+
+    if (dato == 0x83 && Serial2.available() >= 2)
+    {
+      byte bytes[2];
+      Serial2.readBytes(bytes, 2);
+      voltage = (bytes[0] << 8) | bytes[1];
+     //if(!isnan(voltage))
+      //{
+        V = voltage * 0.01;
+
+      // Abrir el archivo para escribir
+        datos = SD.open("datalog.txt", FILE_WRITE);
+        if (datos)
+        {
+          Serial.print(rtc.getTimeStr());
+          Serial.print(" ");
+          Serial.print(V);
+          Serial.print(" ");
+          datos.print(rtc.getTimeStr());
+          datos.print(";");
+          datos.print(V);
+          datos.print(";");
+
+        // Cerrar el archivo después de escribir
+          datos.close();
+        }
+     //}
+    }
+    if (dato == 0x84 && Serial2.available() >= 2)
+    {
+      byte bytes[2];
+      Serial2.readBytes(bytes, 2);
+      int corriente = (bytes[0] << 8) | bytes[1];
+      float current = (10000 - corriente) * 0.01;
+      I = round(current * 10.0) / 10.0;
+
+      datos = SD.open("datalog.txt", FILE_WRITE);
+      if (datos)
+      {
+        Serial.print(I);
+        Serial.print(" ");
+        datos.print(I * -1);
+        datos.print(";");
+
+        // Cerrar el archivo después de escribir
+        datos.close();
+      }
+    }
+
+    if (dato == 0x85 && Serial2.available() >= 1)
+    {
+      byte byte4 = Serial2.read();
+      if(byte4 > 0 && !isnan(byte4))
+      {
+        datos = SD.open("datalog.txt", FILE_WRITE);
+        if (datos)
+        {
+          Serial.println(byte4);
+          datos.println(byte4);
+        }
+        // Cerrar el archivo después de escribir
+        datos.close();
+      }
     }
   }
 }
